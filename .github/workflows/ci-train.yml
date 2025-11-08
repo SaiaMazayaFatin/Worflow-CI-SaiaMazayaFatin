@@ -1,0 +1,37 @@
+name: CI - Train Best XGBoost
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  train-model:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        working-directory: ./MLProject
+        run: |
+          pip install mlflow xgboost scikit-learn pandas numpy
+
+      - name: Run modelling.py with best XGBoost params
+        working-directory: ./MLProject
+        run: |
+          TRACKING_URI="file://$PWD/mlruns_ci"
+          python modelling.py --tracking_uri $TRACKING_URI
+
+      - name: Upload MLflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlruns-ci
+          path: MLProject/mlruns_ci
+          if-no-files-found: ignore

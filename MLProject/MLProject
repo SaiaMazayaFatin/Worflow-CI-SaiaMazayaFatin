@@ -1,0 +1,11 @@
+name: predictive_maintenance_project
+
+conda_env: conda.yaml
+
+entry_points:
+  main:
+    parameters:
+      tracking_uri: {type: str, default: "http://127.0.0.1:5000"}
+    command: >
+      python modelling.py --tracking_uri {tracking_uri}
+
