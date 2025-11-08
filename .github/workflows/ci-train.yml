@@ -1,4 +1,4 @@
-name: CI - Train Best XGBoost
+name: CI - Train Best XGBoost + Docker
 
 on:
   push:
@@ -6,8 +6,12 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  train-model:
+  train-and-build-docker:
     runs-on: ubuntu-latest
+
+    env:
+      # Tracking lokal ke folder mlruns_ci di dalam MLProject
+      MLFLOW_TRACKING_URI: file://$GITHUB_WORKSPACE/MLProject/mlruns_ci
 
     steps:
       - name: Checkout repo
@@ -16,22 +20,61 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.12.7"
 
       - name: Install dependencies
         working-directory: ./MLProject
         run: |
           pip install mlflow xgboost scikit-learn pandas numpy
 
-      - name: Run modelling.py with best XGBoost params
+      - name: Train model with best XGBoost params
         working-directory: ./MLProject
         run: |
-          TRACKING_URI="file://$PWD/mlruns_ci"
-          python modelling.py --tracking_uri $TRACKING_URI
+          echo "Using MLFLOW_TRACKING_URI=$MLFLOW_TRACKING_URI"
+          python modelling.py --tracking_uri $MLFLOW_TRACKING_URI
 
-      - name: Upload MLflow artifacts
+      # ====== SIMPAN ARTEFAK KE GITHUB (Skilled) ======
+      - name: Upload MLflow artifacts (mlruns_ci)
         uses: actions/upload-artifact@v4
         with:
           name: mlruns-ci
           path: MLProject/mlruns_ci
           if-no-files-found: ignore
+
+      # ====== BUILD DOCKER IMAGE DARI MODEL MLFLOW ======
+      - name: Read MLflow run id
+        working-directory: ./MLProject
+        id: get_run_id
+        run: |
+          echo "Run ID file content:"
+          cat last_run_id.txt
+          RUN_ID=$(cat last_run_id.txt)
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker image with MLflow and push to Docker Hub
+        working-directory: ./MLProject
+        env:
+          RUN_ID: ${{ steps.get_run_id.outputs.RUN_ID }}
+          # GANTI ini dengan nama image yang kamu mau
+          IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/predictive-maintenance-xgb:latest
+        run: |
+          echo "Using RUN_ID=$RUN_ID"
+          echo "Using IMAGE_NAME=$IMAGE_NAME"
+
+          # Pastikan MLFLOW_TRACKING_URI tersedia ke CLI juga
+          export MLFLOW_TRACKING_URI=$MLFLOW_TRACKING_URI
+
+          # Build Docker image dari model dalam run tersebut
+          mlflow models build-docker -m "runs:/$RUN_ID/model" -n "$IMAGE_NAME"
+
+          # Push ke Docker Hub
+          docker push "$IMAGE_NAME"
