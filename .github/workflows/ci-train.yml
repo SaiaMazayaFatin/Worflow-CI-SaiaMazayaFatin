@@ -30,9 +30,9 @@ jobs:
       - name: Train model with best XGBoost params
         working-directory: ./MLProject
         run: |
-          echo "Using MLFLOW_TRACKING_URI=$MLFLOW_TRACKING_URI"
-          python modelling.py --tracking_uri $MLFLOW_TRACKING_URI
-
+          TRACKING_URI="file://$(pwd)/mlruns_ci"
+          echo "Using MLFLOW_TRACKING_URI=$TRACKING_URI"
+          python modelling.py --tracking_uri "$TRACKING_URI"
       # ====== SIMPAN ARTEFAK KE GITHUB (Skilled) ======
       - name: Upload MLflow artifacts (mlruns_ci)
         uses: actions/upload-artifact@v4
@@ -64,17 +64,15 @@ jobs:
         working-directory: ./MLProject
         env:
           RUN_ID: ${{ steps.get_run_id.outputs.RUN_ID }}
-          # GANTI ini dengan nama image yang kamu mau
           IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/predictive-maintenance-xgb:latest
         run: |
           echo "Using RUN_ID=$RUN_ID"
           echo "Using IMAGE_NAME=$IMAGE_NAME"
 
-          # Pastikan MLFLOW_TRACKING_URI tersedia ke CLI juga
-          export MLFLOW_TRACKING_URI=$MLFLOW_TRACKING_URI
+          TRACKING_URI="file://$(pwd)/mlruns_ci"
+          echo "Using MLFLOW_TRACKING_URI=$TRACKING_URI"
+          export MLFLOW_TRACKING_URI="$TRACKING_URI"
 
-          # Build Docker image dari model dalam run tersebut
           mlflow models build-docker -m "runs:/$RUN_ID/model" -n "$IMAGE_NAME"
-
-          # Push ke Docker Hub
           docker push "$IMAGE_NAME"
+
