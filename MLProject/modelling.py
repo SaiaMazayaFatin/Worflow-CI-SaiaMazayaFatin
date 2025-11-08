@@ -77,7 +77,16 @@ def main():
     }
     scale_pos_weight = 28.52029520295203  # dari hasil tuning
 
-    with mlflow.start_run(run_name="CI_Best_XGBoost"):
+    with mlflow.start_run(run_name="CI_Best_XGBoost") as run:
+        run_id = run.info.run_id
+        base_dir = Path(__file__).resolve().parent
+        run_id_path = base_dir / "last_run_id.txt"
+
+        with open(run_id_path, "w") as f:
+            f.write(run_id)
+        
+        mlflow.log_artifact(run_id_path)
+
         model = XGBClassifier(
             random_state=42,
             eval_metric="logloss",
