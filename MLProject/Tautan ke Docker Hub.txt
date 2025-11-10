@@ -1,1 +1,1 @@
-https://hub.docker.com/repository/docker/saiamazayafatin/predictive-maintenance-xgb/tags/latest/sha256-80973a1fcf5560b67dbe7eab080804de06ea7bb5497d8c9c867eb998e0069957
+https://hub.docker.com/r/saiamazayafatin/predictive-maintenance-xgb/tags
